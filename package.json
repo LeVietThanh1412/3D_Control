@@ -14,7 +14,7 @@
   "keywords": ["mediapipe", "webgl2", "particles", "hand-tracking", "gestures"],
   "license": "MIT",
   "dependencies": {
-    "@mediapipe/tasks-vision": "^1.0.1"
+    "@mediapipe/tasks-vision": "1.0.1"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0"

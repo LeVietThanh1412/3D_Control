@@ -4,6 +4,17 @@ import { test, expect, chromium } from '@playwright/test';
 import { appUrl, expectLiveFps, shot, status, watchErrors } from './helpers.js';
 import { gpuArgs } from './runtime.js';
 
+const VISION_CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/';
+
+// Exercise the public asset URLs with the actual pinned SDK, without depending on CDN availability in CI.
+test.beforeEach(async ({ context, baseURL }) => {
+  await context.route(`${VISION_CDN}**`, async (route) => {
+    const asset = route.request().url().slice(VISION_CDN.length);
+    const response = await route.fetch({ url: `${baseURL}/node_modules/@mediapipe/tasks-vision/${asset}` });
+    await route.fulfill({ response, headers: { ...response.headers(), 'access-control-allow-origin': '*' } });
+  });
+});
+
 test('camera + MediaPipe hand tracker run live on the webcam feed', async ({ page }) => {
   const noErrors = watchErrors(page);
   await page.goto(appUrl('autostart=camera&n=200000'));
@@ -34,6 +45,38 @@ test('camera + MediaPipe hand tracker run live on the webcam feed', async ({ pag
 
   await page.keyboard.press('c');                                        // camera off
   await page.waitForTimeout(300);
+  expect((await status(page)).camera).toBeNull();
+  noErrors();
+});
+
+test('camera works on a static project subpath without published node_modules', async ({ page, baseURL }) => {
+  const noErrors = watchErrors(page), localPackages = [], models = [], cdnAssets = [];
+  page.on('request', (request) => {
+    const url = request.url();
+    if (url.includes('/node_modules/')) localPackages.push(url);
+    if (url.endsWith('/models/hand_landmarker.task')) models.push(new URL(url).pathname);
+    if (url.startsWith(VISION_CDN)) cdnAssets.push(url.slice(VISION_CDN.length));
+  });
+  await page.context().route('**/node_modules/**', (route) => route.abort());
+  await page.context().route('**/3D_Control/**', async (route) => {
+    const url = new URL(route.request().url());
+    url.pathname = url.pathname.replace(/^\/3D_Control\//, '/');
+    await route.fulfill({ response: await route.fetch({ url: url.href }) });
+  });
+
+  await page.goto(`${baseURL}/3D_Control${appUrl('autostart=camera&n=20000&dpr=0.5')}`);
+  await page.waitForFunction(() => window.wonderSnap?.status().camera?.running, null, { timeout: 90_000 });
+  await page.waitForFunction(() => window.wonderSnap.status().camera.frames >= 5, null, { timeout: 60_000 });
+  const s = await status(page);
+  expect(s.camera.running).toBe(true);
+  expect(['GPU', 'CPU']).toContain(s.camera.delegate);
+  expect(s.camera.videoW).toBeGreaterThan(0);
+  expect(localPackages).toEqual([]);
+  expect(models).toContain('/3D_Control/models/hand_landmarker.task');
+  expect(cdnAssets).toContain('vision_bundle.mjs');
+  expect(cdnAssets.some((asset) => asset.startsWith('wasm/') && asset.endsWith('.wasm'))).toBe(true);
+  await expect(page.locator('#bCam')).toHaveClass(/on/);
+  await page.keyboard.press('c');
   expect((await status(page)).camera).toBeNull();
   noErrors();
 });
