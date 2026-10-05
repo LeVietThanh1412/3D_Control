@@ -1,6 +1,7 @@
 // End-to-end: the real app, real shaders, real GPU — driven by synthetic hands (same landmarks MediaPipe emits)
 // on a deterministic clock. Every step is screenshotted into screenshots/.
 import { test, expect } from '@playwright/test';
+import { CATALOG } from '../src/models/catalog.js';
 import { openApp, appUrl, expectLiveFps, shot, status, cloud, play, snap, indexOf, watchErrors } from './helpers.js';
 
 async function playMarginalFist(page) {
@@ -139,23 +140,25 @@ test('02 the original story: snap -> sphere -> fist -> wonder -> open -> next ->
   noErrors();
 });
 
-test('03 gallery: every wonder, engine and the car, formed', async ({ page }) => {
-  const noErrors = watchErrors(page);
-  await openApp(page);
-  const names = await page.evaluate(() => window.wonderSnap.CATALOG.map((d) => d.name));
-  for (let i = 0; i < names.length; i++) {
-    await page.evaluate((k) => window.wonderSnap.select(k), i);
-    await play(page, 0.6, null);
-    await page.keyboard.press('f');
-    await play(page, 3.0, null);
-    const s = await status(page);
-    expect([s.state, s.index, s.uploaded]).toEqual(['formed', i, i]);
-    const c = await cloud(page);
-    expect(c.finite).toBe(true);
-    expect(c.maxR, names[i]).toBeLessThan(0.97);
-    await shot(page, `03-gallery-${String(i).padStart(2, '0')}-${names[i].replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`);
+// Each model has its own page and timeout; software rendering cannot fit the entire catalog in one test.
+test.describe('03 gallery: every wonder, engine and the car, formed', () => {
+  for (const [i, { name }] of CATALOG.entries()) {
+    test(name, async ({ page }) => {
+      const noErrors = watchErrors(page);
+      await openApp(page);
+      await page.evaluate((k) => window.wonderSnap.select(k), i);
+      await play(page, 0.6, null);
+      await page.keyboard.press('f');
+      await play(page, 3.0, null);
+      const s = await status(page);
+      expect([s.state, s.index, s.uploaded, s.name]).toEqual(['formed', i, i, name]);
+      const c = await cloud(page);
+      expect(c.finite).toBe(true);
+      expect(c.maxR, name).toBeLessThan(0.97);
+      await shot(page, `03-gallery-${String(i).padStart(2, '0')}-${name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`);
+      noErrors();
+    });
   }
-  noErrors();
 });
 
 async function explodeStory(page, name, tag) {
@@ -212,25 +215,28 @@ test('05 Sports car: open hand shows everything inside, fist puts it back togeth
   noErrors();
 });
 
-test('06 every machine exploded (keyboard E) with part labels', async ({ page }) => {
-  const noErrors = watchErrors(page);
-  await openApp(page);
-  const machines = await page.evaluate(() => window.wonderSnap.CATALOG.map((d, i) => [i, d.name, d.kind]).filter((d) => d[2] === 'machine'));
-  for (const [i, name] of machines) {
-    await page.evaluate((k) => window.wonderSnap.select(k), i);
-    await play(page, 0.6, null);
-    await page.keyboard.press('f');
-    await play(page, 2.6, null);
-    await page.keyboard.press('e');                                        // explode without a hand
-    await play(page, 2.2, null);
-    const s = await status(page);
-    expect(s.explode, name).toBeGreaterThan(0.97);
-    await shot(page, `06-exploded-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`);
-    await page.keyboard.press('e');                                        // and back
-    await play(page, 1.5, null);
-    expect((await status(page)).explode).toBeLessThan(0.02);
+test.describe('06 every machine exploded (keyboard E) with part labels', () => {
+  for (const [i, { name, kind }] of CATALOG.entries()) {
+    if (kind !== 'machine') continue;
+    test(name, async ({ page }) => {
+      const noErrors = watchErrors(page);
+      await openApp(page);
+      await page.evaluate((k) => window.wonderSnap.select(k), i);
+      await play(page, 0.6, null);
+      await page.keyboard.press('f');
+      await play(page, 2.6, null);
+      await page.keyboard.press('e');                                      // explode without a hand
+      await play(page, 2.2, null);
+      const s = await status(page);
+      expect([s.state, s.index, s.uploaded, s.name]).toEqual(['formed', i, i, name]);
+      expect(s.explode, name).toBeGreaterThan(0.97);
+      await shot(page, `06-exploded-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`);
+      await page.keyboard.press('e');                                      // and back
+      await play(page, 1.5, null);
+      expect((await status(page)).explode).toBeLessThan(0.02);
+      noErrors();
+    });
   }
-  noErrors();
 });
 
 test('07 peace sign jumps to the next model; a short blip does not', async ({ page }) => {
