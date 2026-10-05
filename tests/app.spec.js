@@ -1,9 +1,7 @@
 // End-to-end: the real app, real shaders, real GPU — driven by synthetic hands (same landmarks MediaPipe emits)
 // on a deterministic clock. Every step is screenshotted into screenshots/.
 import { test, expect } from '@playwright/test';
-import { openApp, shot, status, cloud, play, snap, indexOf, watchErrors } from './helpers.js';
-
-test.describe.configure({ mode: 'serial' });
+import { openApp, appUrl, expectLiveFps, shot, status, cloud, play, snap, indexOf, watchErrors } from './helpers.js';
 
 async function playMarginalFist(page) {
   await page.evaluate(async () => {
@@ -21,13 +19,14 @@ async function playMarginalFist(page) {
 
 test('01 start screen, then keyboard-only mode (real-time loop)', async ({ page }) => {
   const noErrors = watchErrors(page);
-  await page.goto('/?n=200000');
+  await page.goto(appUrl('n=200000'));
   await expect(page.locator('#start')).toBeVisible();
   await page.waitForTimeout(500);
   await shot(page, '01a-start-screen');
   await page.click('#bStartNoCam');
   await expect(page.locator('#start')).toBeHidden();
   await page.waitForFunction(() => window.wonderSnap.status().uploaded === 0);
+  const initialFrames = (await status(page)).frames;
   await page.keyboard.press('Space');                                   // snap
   await page.waitForTimeout(1500);
   expect((await status(page)).state).toBe('sphere');
@@ -36,7 +35,8 @@ test('01 start screen, then keyboard-only mode (real-time loop)', async ({ page 
   await page.waitForTimeout(3000);
   const s = await status(page);
   expect(s.state).toBe('formed');
-  expect(s.fps).toBeGreaterThan(20);
+  expect(s.frames).toBeGreaterThan(initialFrames);
+  expectLiveFps(s.fps, 20);
   await shot(page, '01c-realtime-turtle-tower');
   noErrors();
 });
@@ -304,7 +304,7 @@ test('08 keyboard, mouse wheel, slider, catalog chips and help', async ({ page }
 
 test('09 demo mode plays the whole story with a synthetic hand (real-time)', async ({ page }) => {
   const noErrors = watchErrors(page);
-  await page.goto('/?autostart=nocamera&n=200000');
+  await page.goto(appUrl('autostart=nocamera&n=200000'));
   await page.waitForFunction(() => window.wonderSnap?.status().uploaded === 0);
   await page.keyboard.press('d');
   await page.waitForFunction(() => window.wonderSnap.status().state === 'formed', null, { timeout: 20_000 });

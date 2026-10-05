@@ -89,10 +89,11 @@ test('rendered frame: model on the right third, tall tower fills the height, glo
     return { W, H, n, cx: sx / n, h: maxY - minY, dim, err: gl.getError() };
   });
   console.log(px);
-  expect(px.n).toBeGreaterThan(2000);                     // bright particles
+  const pixelScale = (px.W * px.H) / (1600 * 900);
+  expect(px.n).toBeGreaterThan(2000 * pixelScale);        // bright particles, proportional to framebuffer area
   expect(px.cx).toBeGreaterThan(px.W * 0.55);             // placed on the right side (hand on the left)
   expect(px.h).toBeGreaterThan(px.H * 0.6);               // the tower fills the height
-  expect(px.dim).toBeGreaterThan(5000);                   // soft halo + globe lines
+  expect(px.dim).toBeGreaterThan(5000 * pixelScale);      // soft halo + globe lines
   expect(px.err).toBe(0);
   await shot(page, 'gpu-eiffel-render-check');
   noErrors();

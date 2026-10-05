@@ -1,8 +1,8 @@
-// Playwright runs the real app in Chromium on the real GPU (ANGLE/D3D11 on Windows).
+// Playwright runs the real app in Chromium using hardware acceleration locally or SwiftShader in CI.
 // The camera tests use Chromium's fake webcam, so no physical camera or permission prompt is needed.
 import { defineConfig } from '@playwright/test';
 
-const gpuArgs = process.platform === 'win32' ? ['--use-angle=d3d11'] : [];
+import { gpuArgs } from './tests/runtime.js';
 
 export default defineConfig({
   testDir: 'tests',

@@ -1,9 +1,7 @@
 // The interaction features: beating heart / breathing lungs, two-hand zoom, point-to-pick + pinch-to-pull, quiz,
 // voice commands (+ read aloud), cut-away cross-section, video recording and the category tabs.
 import { test, expect } from '@playwright/test';
-import { openApp, shot, status, play, indexOf, watchErrors } from './helpers.js';
-
-test.describe.configure({ mode: 'serial' });
+import { openApp, appUrl, shot, status, play, indexOf, watchErrors } from './helpers.js';
 
 /** Select a model and form it with the keyboard (no hand in view). */
 async function formModel(page, name, explode = false) {
@@ -227,7 +225,7 @@ test('19 cut-away: the hand slides a cutting plane through the model', async ({ 
 
 test('20 record a video of the session (real-time)', async ({ page }) => {
   const noErrors = watchErrors(page);
-  await page.goto('/?autostart=nocamera&n=150000&model=12');
+  await page.goto(appUrl('autostart=nocamera&n=150000&model=12'));
   await page.waitForFunction(() => window.wonderSnap?.status().uploaded === 12);
   await page.keyboard.press('Space');
   await page.keyboard.press('k');

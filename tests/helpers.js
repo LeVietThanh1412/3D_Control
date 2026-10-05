@@ -1,6 +1,16 @@
 // Shared helpers: open the app with a deterministic clock, drive it with synthetic hands, take screenshots.
 import { expect } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
+import { appUrl, softwareRendering } from './runtime.js';
+
+export { appUrl } from './runtime.js';
+
+/** Liveness is required everywhere; the FPS budget is measured on GPU machines. */
+export function expectLiveFps(fps, minimum) {
+  expect(Number.isFinite(fps)).toBe(true);
+  expect(fps).toBeGreaterThan(0);
+  if (!softwareRendering) expect(fps).toBeGreaterThan(minimum);
+}
 
 export const SHOTS = 'screenshots';
 mkdirSync(SHOTS, { recursive: true });
@@ -15,7 +25,7 @@ export function watchErrors(page) {
 
 /** Open the app in manual-clock mode (frames only advance through wonderSnap.advance). */
 export async function openApp(page, query = '') {
-  await page.goto(`/?manual=1&dpr=1&${query}`);
+  await page.goto(appUrl(`manual=1&dpr=1&${query}`));
   await page.waitForFunction(() => window.wonderSnap);
   await page.evaluate(() => window.wonderSnap.ready());
   await page.evaluate(() => window.wonderSnap.advance(1 / 60, null));

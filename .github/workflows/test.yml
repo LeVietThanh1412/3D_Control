@@ -30,6 +30,8 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Run tests
+        env:
+          PLAYWRIGHT_SOFTWARE_RENDERING: '1'
         run: npm test
 
       - name: Upload Playwright failure artifacts
